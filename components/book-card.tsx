@@ -15,6 +15,7 @@ import { useAuth } from "@/components/firebase-auth-provider"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { Book } from "@/types/book"
+import { useBookRating } from "@/hooks/use-book-ratings"
 
 interface BookCardProps {
   book: Book
@@ -28,6 +29,10 @@ function BookCardComponent({ book }: BookCardProps) {
   const { user } = useAuth()
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
+  const { rating: firebaseRating, loading: ratingLoading } = useBookRating(book.id)
+
+  const displayRating = firebaseRating?.averageRating || book.averageRating
+  const displayRatingsCount = firebaseRating?.ratingsCount || book.ratingsCount
 
   const handleAddToCart = useCallback(() => {
     if (!user) {
@@ -118,10 +123,10 @@ function BookCardComponent({ book }: BookCardProps) {
 
         {/* Rating Badge - теперь всегда показывается */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {book.averageRating > 0 ? (
+          {displayRating > 0 ? (
             <Badge className="bg-yellow-500/90 text-yellow-50 backdrop-blur-sm shadow-lg">
               <Star className="h-3 w-3 mr-1 fill-current" />
-              {book.averageRating.toFixed(1)}
+              {displayRating.toFixed(1)}
             </Badge>
           ) : (
             <Badge variant="secondary" className="bg-gray-500/90 text-white backdrop-blur-sm shadow-lg">
@@ -131,9 +136,9 @@ function BookCardComponent({ book }: BookCardProps) {
           )}
 
           {/* Показываем количество отзывов если есть */}
-          {book.ratingsCount > 0 && (
+          {displayRatingsCount > 0 && (
             <Badge variant="outline" className="bg-white/90 text-gray-700 backdrop-blur-sm shadow-sm text-xs">
-              {book.ratingsCount} {book.ratingsCount === 1 ? t("review") || "review" : t("reviews") || "reviews"}
+              {displayRatingsCount} {displayRatingsCount === 1 ? t("review") || "review" : t("reviews") || "reviews"}
             </Badge>
           )}
         </div>
@@ -148,7 +153,7 @@ function BookCardComponent({ book }: BookCardProps) {
         )}
 
         {/* Дополнительная информация о рейтинге в тексте */}
-        {book.averageRating > 0 && (
+        {displayRating > 0 && (
           <div className="flex items-center gap-1 mt-2">
             <div className="flex items-center">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -156,12 +161,12 @@ function BookCardComponent({ book }: BookCardProps) {
                   key={star}
                   className={cn(
                     "h-3 w-3",
-                    star <= Math.round(book.averageRating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300",
+                    star <= Math.round(displayRating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300",
                   )}
                 />
               ))}
             </div>
-            <span className="text-xs text-muted-foreground ml-1">({book.averageRating.toFixed(1)})</span>
+            <span className="text-xs text-muted-foreground ml-1">({displayRating.toFixed(1)})</span>
           </div>
         )}
 

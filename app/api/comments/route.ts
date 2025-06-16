@@ -1,15 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-interface Comment {
-  id: string
-  bookId: string
-  userId: string
-  userName: string
-  userEmail: string
-  comment: string
-  rating: number
-  createdAt: string
-}
+import { addComment, getBookComments } from "@/lib/firebase-comments"
 
 interface CreateCommentRequest {
   bookId: string
@@ -20,9 +10,6 @@ interface CreateCommentRequest {
   rating?: number
 }
 
-// Временное хранилище (в продакшене используйте базу данных)
-const comments: Comment[] = []
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -32,11 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Book ID is required" }, { status: 400 })
     }
 
-    const bookComments = comments
-      .filter((comment) => comment.bookId === bookId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    return NextResponse.json({ comments: bookComments })
+    const comments = await getBookComments(bookId)
+    return NextResponse.json({ comments })
   } catch (error) {
     console.error("Error fetching comments:", error)
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 })
@@ -52,18 +36,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const newComment: Comment = {
-      id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const newComment = await addComment({
       bookId,
       userId,
       userName: userName || "Anonymous",
       userEmail: userEmail || "",
       comment,
       rating: rating || 0,
-      createdAt: new Date().toISOString(),
-    }
+    })
 
-    comments.push(newComment)
+    if (!newComment) {
+      return NextResponse.json({ error: "Failed to add comment" }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,

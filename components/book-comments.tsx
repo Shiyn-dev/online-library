@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Star, Send } from "lucide-react"
-import { useLanguage } from "@/hooks/use-language"
 import { useAuth } from "@/components/firebase-auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { getBookComments, addComment } from "@/lib/firebase-comments"
+import { useLanguage } from "@/hooks/use-language"
 
 interface Comment {
   id: string
@@ -41,9 +42,8 @@ export function BookComments({ bookId }: BookCommentsProps) {
 
   const fetchComments = async () => {
     try {
-      const response = await fetch(`/api/comments?bookId=${bookId}`)
-      const data = await response.json()
-      setComments(data.comments || [])
+      const commentsData = await getBookComments(bookId)
+      setComments(commentsData)
     } catch (error) {
       console.error("Error fetching comments:", error)
     } finally {
@@ -72,25 +72,17 @@ export function BookComments({ bookId }: BookCommentsProps) {
 
     setSubmitting(true)
     try {
-      const response = await fetch("/api/comments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bookId,
-          userId: user.uid,
-          userName: user.displayName || "Anonymous",
-          userEmail: user.email,
-          comment: newComment,
-          rating: newRating,
-        }),
+      const commentData = await addComment({
+        bookId,
+        userId: user.uid,
+        userName: user.displayName || "Anonymous",
+        userEmail: user.email || "",
+        comment: newComment,
+        rating: newRating,
       })
 
-      const data = await response.json()
-
-      if (data.success) {
-        setComments([data.comment, ...comments])
+      if (commentData) {
+        setComments([commentData, ...comments])
         setNewComment("")
         setNewRating(0)
         toast({
@@ -98,7 +90,7 @@ export function BookComments({ bookId }: BookCommentsProps) {
           description: t("commentAddedSuccessfully"),
         })
       } else {
-        throw new Error(data.error)
+        throw new Error("Failed to add comment")
       }
     } catch (error) {
       console.error("Error adding comment:", error)
