@@ -4,11 +4,11 @@ import { initializeApp, getApps } from "firebase/app"
 import { getAuth } from "firebase/auth"
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDv7z5DrecgDeYihkzSnmCskSOMvbxqj2s",
-  authDomain: "online-library-8c09e.firebaseapp.com",
-  projectId: "online-library-8c09e",
+  apiKey: "AIzaSyBT5iU42wAQDaeN20fUYcyeoeoOtWaNfP0",
+  authDomain: "onlinelibrary1-df368.firebaseapp.com",
+  projectId: "onlinelibrary1-df368",
   storageBucket: "online-library-8c09e.appspot.com",
-  messagingSenderId: "98224396737",
+  messagingSenderId: "822344013173",
   appId: "1:98224396737:web:your-app-id",
 }
 
