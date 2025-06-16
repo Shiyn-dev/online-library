@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { addComment, getBookComments } from "@/lib/firebase-comments"
+import { addComment, getBookComments, updateComment, deleteComment } from "@/lib/firebase-comments"
 
 interface CreateCommentRequest {
   bookId: string
@@ -8,6 +8,11 @@ interface CreateCommentRequest {
   userEmail?: string
   comment: string
   rating?: number
+}
+
+interface UpdateCommentRequest {
+  comment: string
+  rating: number
 }
 
 export async function GET(request: NextRequest) {
@@ -56,5 +61,56 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error adding comment:", error)
     return NextResponse.json({ error: "Failed to add comment" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const commentId = searchParams.get("commentId")
+
+    if (!commentId) {
+      return NextResponse.json({ error: "Comment ID is required" }, { status: 400 })
+    }
+
+    const body: UpdateCommentRequest = await request.json()
+    const { comment, rating } = body
+
+    if (!comment) {
+      return NextResponse.json({ error: "Comment text is required" }, { status: 400 })
+    }
+
+    const success = await updateComment(commentId, { comment, rating })
+
+    if (!success) {
+      return NextResponse.json({ error: "Failed to update comment" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error updating comment:", error)
+    return NextResponse.json({ error: "Failed to update comment" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const commentId = searchParams.get("commentId")
+
+    if (!commentId) {
+      return NextResponse.json({ error: "Comment ID is required" }, { status: 400 })
+    }
+
+    const success = await deleteComment(commentId)
+
+    if (!success) {
+      return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting comment:", error)
+    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 })
   }
 }

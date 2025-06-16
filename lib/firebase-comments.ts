@@ -1,7 +1,19 @@
 "use client"
 
 import { getFirebaseApp } from "@/lib/firebase"
-import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore"
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  Timestamp,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore"
 
 let db: any = null
 
@@ -32,6 +44,8 @@ export interface Comment {
   comment: string
   rating: number
   createdAt: string
+  updatedAt?: string
+  isEdited?: boolean
 }
 
 export interface BookRating {
@@ -57,12 +71,14 @@ export async function addComment(commentData: {
     const docRef = await addDoc(commentsRef, {
       ...commentData,
       createdAt: serverTimestamp(),
+      isEdited: false,
     })
 
     const newComment: Comment = {
       id: docRef.id,
       ...commentData,
       createdAt: new Date().toISOString(),
+      isEdited: false,
     }
 
     console.log("Comment added to Firebase:", docRef.id)
@@ -73,6 +89,50 @@ export async function addComment(commentData: {
   }
 }
 
+// Обновить комментарий
+export async function updateComment(
+  commentId: string,
+  updateData: {
+    comment: string
+    rating: number
+  },
+): Promise<boolean> {
+  try {
+    const db = getFirebaseDb()
+    if (!db) return false
+
+    const commentRef = doc(db, "comments", commentId)
+    await updateDoc(commentRef, {
+      ...updateData,
+      updatedAt: serverTimestamp(),
+      isEdited: true,
+    })
+
+    console.log("Comment updated:", commentId)
+    return true
+  } catch (error) {
+    console.error("Error updating comment:", error)
+    return false
+  }
+}
+
+// Удалить комментарий
+export async function deleteComment(commentId: string): Promise<boolean> {
+  try {
+    const db = getFirebaseDb()
+    if (!db) return false
+
+    const commentRef = doc(db, "comments", commentId)
+    await deleteDoc(commentRef)
+
+    console.log("Comment deleted:", commentId)
+    return true
+  } catch (error) {
+    console.error("Error deleting comment:", error)
+    return false
+  }
+}
+
 // Получить комментарии для книги
 export async function getBookComments(bookId: string): Promise<Comment[]> {
   try {
@@ -80,7 +140,6 @@ export async function getBookComments(bookId: string): Promise<Comment[]> {
     if (!db) return []
 
     const commentsRef = collection(db, "comments")
-    // Убираем orderBy чтобы избежать необходимости создания составного индекса
     const q = query(commentsRef, where("bookId", "==", bookId))
 
     const snapshot = await getDocs(q)
@@ -100,6 +159,9 @@ export async function getBookComments(bookId: string): Promise<Comment[]> {
           data.createdAt instanceof Timestamp
             ? data.createdAt.toDate().toISOString()
             : data.createdAt || new Date().toISOString(),
+        updatedAt:
+          data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt || undefined,
+        isEdited: data.isEdited || false,
       })
     })
 
@@ -132,7 +194,7 @@ export async function getBookRating(bookId: string): Promise<BookRating> {
     const averageRating = totalRating / ratingsWithValues.length
 
     return {
-      averageRating: Math.round(averageRating * 10) / 10, // Округляем до 1 знака после запятой
+      averageRating: Math.round(averageRating * 10) / 10,
       totalRatings: totalRating,
       ratingsCount: ratingsWithValues.length,
     }
@@ -152,7 +214,6 @@ export async function getBooksRatings(bookIds: string[]): Promise<Record<string,
     const db = getFirebaseDb()
     if (!db) return {}
 
-    // Разбиваем на чанки по 10 (ограничение Firestore для "in" запросов)
     const chunks = []
     for (let i = 0; i < bookIds.length; i += 10) {
       chunks.push(bookIds.slice(i, i + 10))
@@ -160,7 +221,6 @@ export async function getBooksRatings(bookIds: string[]): Promise<Record<string,
 
     const commentsByBook: Record<string, Comment[]> = {}
 
-    // Обрабатываем каждый чанк отдельно
     for (const chunk of chunks) {
       const commentsRef = collection(db, "comments")
       const q = query(commentsRef, where("bookId", "in", chunk))
@@ -187,6 +247,9 @@ export async function getBooksRatings(bookIds: string[]): Promise<Record<string,
             data.createdAt instanceof Timestamp
               ? data.createdAt.toDate().toISOString()
               : data.createdAt || new Date().toISOString(),
+          updatedAt:
+            data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt || undefined,
+          isEdited: data.isEdited || false,
         })
       })
     }

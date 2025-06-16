@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, memo } from "react"
+import { useState, useCallback, memo, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -29,10 +29,31 @@ function BookCardComponent({ book }: BookCardProps) {
   const { user } = useAuth()
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
-  const { rating: firebaseRating, loading: ratingLoading } = useBookRating(book.id)
+  const { rating: firebaseRating, loading: ratingLoading, error: ratingError } = useBookRating(book.id)
 
-  const displayRating = firebaseRating?.averageRating || book.averageRating
-  const displayRatingsCount = firebaseRating?.ratingsCount || book.ratingsCount
+  // Используем Firebase рейтинг если он есть, иначе Google Books рейтинг
+  const displayRating = firebaseRating?.averageRating > 0 ? firebaseRating.averageRating : book.averageRating
+  const displayRatingsCount = firebaseRating?.ratingsCount > 0 ? firebaseRating.ratingsCount : book.ratingsCount
+
+  // Логирование для отладки
+  useEffect(() => {
+    if (!ratingLoading && !ratingError) {
+      console.log(`Book ${book.id} ratings:`, {
+        firebase: firebaseRating,
+        google: { averageRating: book.averageRating, ratingsCount: book.ratingsCount },
+        display: { rating: displayRating, count: displayRatingsCount },
+      })
+    }
+  }, [
+    book.id,
+    firebaseRating,
+    ratingLoading,
+    ratingError,
+    book.averageRating,
+    book.ratingsCount,
+    displayRating,
+    displayRatingsCount,
+  ])
 
   const handleAddToCart = useCallback(() => {
     if (!user) {
@@ -121,7 +142,7 @@ function BookCardComponent({ book }: BookCardProps) {
           <Heart className={cn("h-4 w-4", isBookFavorite && "fill-red-500 text-red-500")} />
         </Button>
 
-        {/* Rating Badge - теперь всегда показывается */}
+        {/* Rating Badge */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {displayRating > 0 ? (
             <Badge className="bg-yellow-500/90 text-yellow-50 backdrop-blur-sm shadow-lg">
@@ -167,6 +188,7 @@ function BookCardComponent({ book }: BookCardProps) {
               ))}
             </div>
             <span className="text-xs text-muted-foreground ml-1">({displayRating.toFixed(1)})</span>
+            {firebaseRating?.ratingsCount > 0 && <span className="text-xs text-blue-600 ml-1">• Firebase</span>}
           </div>
         )}
 
